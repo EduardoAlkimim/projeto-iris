@@ -4,6 +4,10 @@ Jogo de tiro em primeira pessoa com narrativa, feito para o navegador com HTML5,
 
 ## Como jogar
 
+**▶ Jogue online:** https://eduardoalkimim.github.io/projeto-iris/
+
+Ou, sem internet:
+
 1. Abra o arquivo **`index.html`** no Google Chrome ou no Edge (duplo clique). Não precisa de internet nem de servidor.
 2. Use fones de ouvido e tela cheia (**F11**).
 
