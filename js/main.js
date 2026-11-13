@@ -11,10 +11,11 @@ let cur = 0;                // setor atual
 let playedStart = new Set();
 let panelReturn = "menu";
 let handHintShown = false;
+const SECRET_TOTAL = Object.keys(STORY.secrets).length;
 
 /* ---------------- SALVAMENTO ---------------- */
 const settings = Object.assign({ music: 0.55, sfx: 0.8, sens: 1, hand: false, turn: 1 }, JSON.parse(localStorage.getItem("iris_settings") || "{}"));
-const progress = Object.assign({ unlocked: 0, endings: [] }, JSON.parse(localStorage.getItem("iris_progress") || "{}"));
+const progress = Object.assign({ unlocked: 0, endings: [], secrets: [] }, JSON.parse(localStorage.getItem("iris_progress") || "{}"));
 const saveSettings = () => localStorage.setItem("iris_settings", JSON.stringify(settings));
 const saveProgress = () => localStorage.setItem("iris_progress", JSON.stringify(progress));
 function applySettings() {
@@ -184,11 +185,21 @@ const Main = {
     setTimeout(() => { if (state === "dead") show("dead"); }, 500);
   },
   onBossDefeated() { showChoice(); },
+  // EASTER EGGS: registra um segredo encontrado (salvo entre sessões)
+  onSecret(id, quiet) {
+    const S = STORY.secrets[id];
+    const isNew = !progress.secrets.includes(id);
+    if (isNew) { progress.secrets.push(id); saveProgress(); }
+    if (quiet) return;
+    if (isNew) { Sound.sfx.memory(); UI.toast(`SEGREDO ENCONTRADO · ${S.name} (${progress.secrets.length}/${SECRET_TOTAL})`); }
+    else UI.toast(S.name);
+    say(S.lines);
+  },
   openTerminal(t) {
     state = "terminal";
     Game.markTerminalRead(t);
     $("#termTitle").textContent = t.log.title;
-    $("#termCount").textContent = `REGISTROS ${Game.stats.logs.size}/${TOTAL_LOGS}`;
+    $("#termCount").textContent = t.secret ? "REGISTRO SECRETO" : `REGISTROS ${Game.stats.logs.size}/${TOTAL_LOGS}`;
     show("terminal");
     termTyping = true;
     typeInto($("#termBody"), t.log.body, 8, () => !termTyping, i => { if (i % 3 === 0) Sound.sfx.type(); })
@@ -216,7 +227,14 @@ function keypadInput(e) {
   else if (e.code === "Backspace") { keyCode = keyCode.slice(0, -1); Sound.sfx.key(); renderKeypad(); }
   else if (e.code === "Enter" || e.code === "NumpadEnter") {
     const msg = $("#keyMsg");
-    if (keyCode === LEVELS[cur].code) {
+    const joke = STORY.secretCodes[keyCode];
+    if (joke && keyCode !== LEVELS[cur].code) {        // EASTER EGG: senhas engraçadas
+      msg.className = "err"; msg.textContent = "ACESSO NEGADO";
+      Sound.sfx.denied();
+      clearDialog(); say([["ÍRIS", joke]]);
+      Main.onSecret("code");
+      keyCode = ""; setTimeout(renderKeypad, 300);
+    } else if (keyCode === LEVELS[cur].code) {
       msg.className = "ok"; msg.textContent = "ACESSO LIBERADO";
       Sound.sfx.granted();
       const d = keypadDoor;
@@ -226,7 +244,7 @@ function keypadInput(e) {
       Sound.sfx.denied();
       const box = $(".keyBox"); box.classList.remove("shake"); void box.offsetWidth; box.classList.add("shake");
       const lines = STORY.sectors[cur].codeWrong || ["Errado."];
-      say([["ÍRIS", lines[Math.floor(Math.random() * lines.length)]]]);
+      clearDialog(); say([["ÍRIS", lines[Math.floor(Math.random() * lines.length)]]]);
       keyCode = ""; setTimeout(renderKeypad, 300);
     }
   }
@@ -241,8 +259,12 @@ function showMenu() {
   exitLock(); clearDialog(); hud(false); UI.bossBar(false);
   show("menu");
   $("#btnChapters").disabled = progress.unlocked < 1;
-  $("#endingsSeen").textContent = progress.endings.length
-    ? `FINAIS DESCOBERTOS ${progress.endings.length}/3` : "";
+  $("#endingsSeen").textContent = (progress.endings.length || progress.secrets.length)
+    ? `FINAIS DESCOBERTOS ${progress.endings.length}/3 · SEGREDOS ${progress.secrets.length}/${SECRET_TOTAL}` : "";
+  // EASTER EGG: quem viu os 3 finais ganha um menu diferente
+  const seenAll = progress.endings.length >= 3;
+  $("#menu").classList.toggle("allseen", seenAll);
+  $("#menu .subtitle").textContent = seenAll ? "ÍRIS VÊ VOCÊ" : "A MEMÓRIA NÃO É SUA";
   Sound.playMusic("menu");
 }
 
@@ -354,6 +376,7 @@ async function showEnding(kind) {
   state = "ending";
   const E = STORY.endings[kind];
   if (!progress.endings.includes(kind)) { progress.endings.push(kind); saveProgress(); }
+  if (progress.endings.length >= 3) Main.onSecret("endings", true);
   Sound.playMusic(kind === "free" ? "endingLight" : "endingDark");
   show("ending");
   $("#endTitle").textContent = E.title;
@@ -373,7 +396,7 @@ async function showEnding(kind) {
   const acc = st.shots ? Math.min(100, Math.round(st.hits / st.shots * 100)) : 0;
   $("#endStats").innerHTML =
     `TEMPO ${fmtTime(st.time)} · PRECISÃO ${acc}% · ABATES ${st.kills} · DESCONEXÕES ${st.deaths}<br>` +
-    `REGISTROS ${st.logs.size}/${TOTAL_LOGS} · FINAIS DESCOBERTOS ${progress.endings.length}/3<br><br>` +
+    `REGISTROS ${st.logs.size}/${TOTAL_LOGS} · FINAIS DESCOBERTOS ${progress.endings.length}/3 · SEGREDOS ${progress.secrets.length}/${SECRET_TOTAL}<br><br>` +
     `PROJETO ÍRIS · ${CREDITS.grupo.map(escapeHtml).join(" · ")} · ${CREDITS.ano}`;
   await wait(1200);
   $("#endStats").classList.add("show");
@@ -496,6 +519,19 @@ document.addEventListener("mouseover", e => {
 $("#intro").addEventListener("click", () => { introAdvance = true; });
 $("#card").addEventListener("click", () => { if (state === "card") { Sound.sfx.uiClick(); enterPlay(); } });
 $("#terminal").addEventListener("click", () => { if (state === "terminal") closeModal(); });
+
+/* ---- EASTER EGG: código Konami (↑ ↑ ↓ ↓ ← → ← → B A) liga o modo retrô ---- */
+const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "KeyB", "KeyA"];
+let konamiPos = 0;
+window.addEventListener("keydown", e => {
+  if (e.repeat) return;
+  konamiPos = e.code === KONAMI[konamiPos] ? konamiPos + 1 : (e.code === KONAMI[0] ? 1 : 0);
+  if (konamiPos === KONAMI.length) {
+    konamiPos = 0;
+    Game.setRetro(!Game.retro);
+    if (Game.retro) Main.onSecret("konami"); else UI.toast("MODO RETRÔ DESLIGADO");
+  }
+});
 
 window.addEventListener("keydown", e => {
   if (e.code === "KeyM" && state !== "keypad") {

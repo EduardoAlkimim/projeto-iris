@@ -8,6 +8,9 @@
      X  porta de saída (abre com todos os fragmentos)
      L  porta com código  E  plataforma de saída
      B  chefe (ÍRIS)      1-9 gatilhos de diálogo
+   Easter eggs:
+     S  parede falsa (parece parede, mas dá para atravessar)
+     Q  terminal secreto  C  caneca de café da Helena
    ============================================================ */
 
 const LEVELS = [
@@ -26,8 +29,8 @@ const LEVELS = [
       "###.#####.###.###",
       "#...........#.T.#",
       "#...D.......#...#",
-      "#######X#########",
-      "#######E#########"
+      "#S#####X#########",
+      "#.Q####E#########"
     ],
     startYaw: -Math.PI / 2,       // olhando para o leste
     song: "explore", transpose: 0,
@@ -51,7 +54,7 @@ const LEVELS = [
       "#...#.....#.....#...#",
       "#.T.#..R..#..F..#.F.#",
       "#...................#",
-      "#...#.....D.....#...#",
+      "#C..#.....D.....#...#",
       "##########X##########",
       "##########E##########"
     ],
@@ -91,7 +94,7 @@ const LEVELS = [
 
 // contagens derivadas dos mapas
 LEVELS.forEach(L => {
-  const s = L.map.join("");
+  const s = L.map.join("");  // (Q = terminal secreto, não conta)
   L.fragCount = (s.match(/F/g) || []).length;
   L.termCount = (s.match(/T/g) || []).length;
 });

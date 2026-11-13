@@ -148,7 +148,10 @@ da ala inteira. Ninguém entra, ninguém sai.
 Ela diz que só precisa de "mais uma tentativa".
 
 O conselho proibiu que a desligássemos.
-Eles querem o que está dentro dela.` },
+Eles querem o que está dentro dela.
+
+P.S.: o pessoal do suporte jura que uma das paredes
+do Setor 1, perto da saída, "não é parede". Bobagem.` },
 
     { title: "LOG 03 — DIÁRIO PESSOAL · H. VASQUEZ",
       body:
@@ -256,6 +259,41 @@ Você não foi uma vítima. Você foi enviado.` }
       ],
       tagline: "ÍRIS VÊ. ÍRIS DEIXA IR."
     }
+  },
+
+  /* ---------- EASTER EGGS (segredos) ---------- */
+  // registro do terminal escondido na sala secreta do Setor 1 (não conta nos 7 registros)
+  secretLog: {
+    title: "LOG 00 — SALA DOS DESENVOLVEDORES",
+    body:
+`Você achou a parede que não é parede.
+
+SUJEITO 00: Dra. Helena Vasquez.
+Ela se conectou à primeira versão da simulação
+uma semana antes de morrer. Foi ela quem escondeu
+a frase no núcleo.
+
+—
+
+PROJETO ÍRIS foi feito por:
+Gabriela · Eduardo · Maycon · Davi
+
+Obrigado por explorar. ÍRIS vê tudo,
+mas não viu esta sala.`
+  },
+  secrets: {
+    konami: { name: "CÓDIGO KONAMI", lines: [["SISTEMA", "MODO RETRÔ ATIVADO — SIMULAÇÃO 1997"], ["ÍRIS", "Que resolução é essa? Eu tenho padrões, sabia?"]] },
+    room:   { name: "A PAREDE QUE NÃO É PAREDE", lines: [["ÍRIS", "Como você entrou aqui? Esta sala não existe."]] },
+    coffee: { name: "O CAFÉ FRIO DE HELENA", lines: [["HELENA", "Ainda está frio. Do jeito que eu gosto."], ["ÍRIS", "...Ela nunca terminava o café."]] },
+    code:   { name: "SENHA ENGRAÇADINHA", lines: [] },
+    endings:{ name: "ÍRIS VÊ TUDO", lines: [] }
+  },
+  // senhas especiais no painel da Ala de Arquivo
+  secretCodes: {
+    "0404": "Sujeito 04. Engraçadinho. Esse número é você, não a senha.",
+    "1234": "Sério? Helena tinha doutorado.",
+    "0000": "Zero. Exatamente o que você sabe sobre ela.",
+    "2091": "Esse é o ano. Não a senha. Mas gostei da tentativa."
   },
 
   /* ---------- FALAS AO MORRER ---------- */

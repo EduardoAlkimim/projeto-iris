@@ -226,7 +226,7 @@ const Game = (() => {
     world = {
       idx, L, grid, rows, cols, time: 0,
       enemies: [], projectiles: [], particles: [], tracers: [], fragments: [], terminals: [],
-      doors: [], doorMap: {}, pickups: [], obstacles: [], shootables: [], triggers: {}, fired: new Set(),
+      doors: [], doorMap: {}, pickups: [], obstacles: [], shootables: [], triggers: {}, fired: new Set(), cups: [],
       fragCollected: 0, fragTotal: L.fragCount, exitOpen: false, exitCell: null, exitPad: null,
       boss: null, dead: false, complete: false, firstKill: false, firstFragment: false,
       explored: new Uint8Array(rows * cols), hurtT: 99, nearest: null
@@ -254,6 +254,7 @@ const Game = (() => {
     // paredes (instanciadas — só as que fazem fronteira com o chão)
     const wallCells = [];
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      if (grid[r][c] === "S") { wallCells.push([c, r]); continue; } // EASTER EGG: parede falsa
       if (grid[r][c] !== "#") continue;
       let edge = false;
       for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
@@ -290,6 +291,8 @@ const Game = (() => {
         case "L": spawnDoor(c, r, "lock"); break;
         case "E": spawnExitPad(c, r); break;
         case "B": spawnBoss(x, z); break;
+        case "Q": spawnTerminal(c, r, -1); break;      // EASTER EGG: terminal secreto
+        case "C": spawnCup(x, z); break;               // EASTER EGG: caneca da Helena
         default: if (/[1-9]/.test(ch)) world.triggers[c + "," + r] = ch;
       }
     }
@@ -491,8 +494,9 @@ const Game = (() => {
         rot = Math.atan2(-dx, -dz); break;
       }
     }
-    const log = STORY.logs[logIndex] || { title: "LOG ??", body: "..." };
-    const read = stats.logs.has(logIndex);
+    const secret = logIndex < 0;
+    const log = secret ? STORY.secretLog : (STORY.logs[logIndex] || { title: "LOG ??", body: "..." });
+    const read = !secret && stats.logs.has(logIndex);
     const g = new THREE.Group();
     const dark = new THREE.MeshStandardMaterial({ color: 0x1a222b, metalness: 0.6, roughness: 0.4 });
     const base = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.1, 0.55), dark); base.position.y = 0.55; g.add(base);
@@ -507,12 +511,13 @@ const Game = (() => {
     g.position.set(x, 0, z); g.rotation.y = rot;
     scene.add(g);
     world.obstacles.push({ x, z, r: 0.55 });
-    world.terminals.push({ x, z, mesh: g, screenMat, ledMat, light, logIndex, log, read });
+    world.terminals.push({ x, z, mesh: g, screenMat, ledMat, light, logIndex, log, read, secret });
   }
 
   function markTerminalRead(t) {
     if (t.read) return;
-    t.read = true; stats.logs.add(t.logIndex);
+    t.read = true;
+    if (t.secret) Main.onSecret("room"); else stats.logs.add(t.logIndex);
     const old = t.screenMat.map;
     const tex = terminalScreenTex(t.log.title, true); tex.userData = { screen: true };
     t.screenMat.map = tex; t.screenMat.needsUpdate = true; old.dispose();
@@ -562,6 +567,46 @@ const Game = (() => {
     world.exitOpen = true;
     world.doors.filter(d => d.kind === "exit").forEach(openDoor);
     if (world.exitPad) { world.exitPad.padMat.color.setHex(0x6dff9c); world.exitPad.beamMat.opacity = 0.25; }
+  }
+
+  /* ============================================================
+     EASTER EGG — A CANECA DE CAFÉ FRIO DE HELENA
+     Uma mesinha com uma caneca escondida no canto do Setor 2.
+     Examinar (E) restaura toda a integridade e conta como segredo.
+     ============================================================ */
+  function spawnCup(x, z) {
+    const g = new THREE.Group();
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1a222b, metalness: 0.5, roughness: 0.5 });
+    const table = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), dark); table.position.y = 0.45;
+    const cupMat = new THREE.MeshStandardMaterial({ color: 0xe9ecef, roughness: 0.4 });
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.22, 16), cupMat); cup.position.y = 1.01;
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.018, 6, 12), cupMat);
+    handle.position.set(0.13, 1.01, 0); handle.rotation.y = Math.PI / 2;
+    const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.095, 16), new THREE.MeshBasicMaterial({ color: 0x3a1f10 }));
+    coffee.rotation.x = -Math.PI / 2; coffee.position.y = 1.1;
+    const light = new THREE.PointLight(0xffd166, 0.6, 3); light.position.y = 1.6;
+    g.add(table, cup, handle, coffee, light);
+    g.position.set(x - 1.2, 0, z + 1.2); // encostada no canto
+    scene.add(g);
+    world.obstacles.push({ x: x - 1.2, z: z + 1.2, r: 0.6 });
+    world.cups.push({ x: x - 1.2, z: z + 1.2, used: false, coffee });
+  }
+
+  function useCup(cup) {
+    if (cup.used) return;
+    cup.used = true; cup.coffee.visible = false;
+    player.hp = player.maxHp;
+    Sound.sfx.heal(); UI.healFlash();
+    Main.onSecret("coffee");
+  }
+
+  // EASTER EGG — modo retrô (código Konami): renderiza em baixa resolução, estilo anos 90
+  let retro = false;
+  function setRetro(on) {
+    retro = on;
+    renderer.setPixelRatio(on ? 0.22 : Math.min(window.devicePixelRatio, 1.5));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.domElement.style.imageRendering = on ? "pixelated" : "";
   }
 
   /* ============================================================
@@ -1066,15 +1111,21 @@ const Game = (() => {
       const dist = Math.hypot(p.x - d.x, p.z - d.z);
       if (dist < 3.2 && dist < bestD) { best = { kind: d.kind, d }; bestD = dist; }
     }
+    for (const cup of world.cups) {
+      const d = Math.hypot(p.x - cup.x, p.z - cup.z);
+      if (d < 2 && d < bestD) { best = { kind: "cup", cup }; bestD = d; }
+    }
     world.nearest = best;
     if (!best) UI.prompt(null);
     else if (best.kind === "terminal") UI.prompt(best.t.read ? "[E] RELER REGISTRO" : "[E] ACESSAR TERMINAL");
     else if (best.kind === "lock") UI.prompt("[E] PAINEL DE ACESSO — CÓDIGO NECESSÁRIO");
+    else if (best.kind === "cup") UI.prompt(best.cup.used ? "UMA CANECA VAZIA" : "[E] EXAMINAR CANECA");
     else UI.prompt(`PORTA SELADA — FRAGMENTOS ${world.fragCollected}/${world.fragTotal}`);
 
     if (input.pressed.KeyE && best) {
       if (best.kind === "terminal") { Sound.sfx.terminal(); Main.openTerminal(best.t); }
       else if (best.kind === "lock") { Sound.sfx.terminal(); Main.openKeypad(best.d); }
+      else if (best.kind === "cup") useCup(best.cup);
       else Sound.sfx.denied();
     }
   }
@@ -1115,7 +1166,7 @@ const Game = (() => {
     const ex = (x, z) => world.explored[Math.round(z / CELL) * world.cols + Math.round(x / CELL)];
     for (let r = 0; r < world.rows; r++) for (let c = 0; c < world.cols; c++) {
       if (!world.explored[r * world.cols + c]) continue;
-      g.fillStyle = world.grid[r][c] === "#" ? "#22303c" : "rgba(62,230,216,0.07)";
+      g.fillStyle = (world.grid[r][c] === "#" || world.grid[r][c] === "S") ? "#22303c" : "rgba(62,230,216,0.07)";
       g.fillRect(ox + c * s, oy + r * s, s, s);
     }
     const dot = (x, z, col, rad) => { const [mx, my] = toMap(x, z); g.fillStyle = col; g.beginPath(); g.arc(mx, my, rad, 0, Math.PI * 2); g.fill(); };
@@ -1137,6 +1188,7 @@ const Game = (() => {
      ============================================================ */
   return {
     init, loadSector, update, render, clearInput, drawMinimap, activateBoss, openDoor, markTerminalRead,
+    setRetro, get retro() { return retro; },
     player, input, stats, aim,
     get world() { return world; },
     resetStats() { Object.assign(stats, { shots: 0, hits: 0, kills: 0, deaths: 0, time: 0 }); stats.logs = new Set(); }
