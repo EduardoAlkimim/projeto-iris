@@ -42,6 +42,9 @@ Você é o **Sujeito 04**. Ao recolher fragmentos de memória e ler os registros
 - **Setor 03 · Núcleo**: confronto com ÍRIS (chefe com fases e escudo).
 - **3 finais**: *Hospedeiro*, *Despertar* e o final verdadeiro, *Deixe-me ir*, que exige ler os 7 registros.
 
+## Documentação
+A documentação completa (narrativa, planejamento, descrição técnica, Easter Eggs, manual, desafios e referências) está em [`docs/Documentacao_Projeto_IRIS.pdf`](docs/Documentacao_Projeto_IRIS.pdf) e em versão Word na mesma pasta.
+
 ## Estrutura do código
 
 ```
